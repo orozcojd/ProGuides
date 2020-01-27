@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pro Guide - Report Card</title>
+  <meta charset='utf-8' />
+  <link rel="stylesheet" type="text/css" href="styles/main.css">
+  <link href="https://fonts.googleapis.com/css?family=Poppins&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <script src="https://unpkg.com/vuex"></script>
+  <meta name="viewport" content="width=device-width,
+    initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
+  >
+
+</head>
+<body>
+  <div id="vapp">
+    <div class="card">
+      <card></card>
+      <page-indicator></page-indicator>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+  <script type="module">
+      let mapState = Vuex.mapState
+      let mapActions = Vuex.mapActions
+
+      /* converts an array into a map given an array and id use as key */
+      const arrayToMap = (id, arr) => {
+        let map = {}
+        for(const o of arr) {
+          map[o[id]] = o
+        }
+        return map
+      }
+      /* maps the course arr and grades arr into one array by ID */
+      const mapGradesToCourse = (gradesArr, courseArr) => {
+        const courseObj = arrayToMap('courseId', courseArr)
+        const mappedgrades = gradesArr.map(g => ({
+          ...g,
+          ...courseObj[g.courseId]
+        }))
+        return mappedgrades
+      }
+      /* converts array of grades into object, key as studentId grades array as values */
+      const idToObjList = (gradesArr) => {
+        let map = {}
+        for(const g of gradesArr) {
+          if(!map[g.studentId]) map[g.studentId] = [g]
+          else map[g.studentId].push(g)
+        }
+        return map
+      }
+      const store = new Vuex.Store({
+    state: {
+      students: [],
+      student: {},
+      courses: [],
+      grades: [],
+      reports: [],
+      loading: true
+    },
+    actions: {
+      /**
+      * GET
+      * Fetches items from api and commits mutation to vuex store
+      */
+      async fetchStudents(context) {
+        return new Promise((resolve, reject) => {
+          setTimeout(() => {
+          const students = studentArr
+          context.commit('setStudents', students)
+          resolve()
+        }, 1000)
+        })
+      },
+      async fetchCourses(context) {
+        return new Promise((resolve, reject) => {
+          setTimeout(() => {
+          const courses = coursesArr
+          context.commit('setCourses', courses)
+          resolve()
+        }, 1100)
+        })
+      },
+      async fetchGrades(context) {
+        return new Promise((resolve, reject) => {
+          setTimeout(() => {
+          const grades = gradesArr;
+          context.commit('setGrades', grades)
+          resolve()
+        }, 1200)
+        })
+      },
+      syncMapStudents(context) {
+        context.commit('mapStudents')
+      },
+      selectedStudent(context, index) {
+        context.commit('selectStudent', index)
+      },
+      setLoading(context, bool) {
+        context.commit('setLoad', bool)
+      }
+    },
+    mutations: {
+      setStudents(state, students) {
+        state.students = students
+      },
+      setCourses(state, courses) {
+        state.courses = courses
+      },
+      setGrades(state, grades) {
+        state.grades = grades
+      },
+      mapStudents(state) {
+        const grades = mapGradesToCourse(state.grades, state.courses)
+        const mGradesObj = idToObjList(grades)
+        state.report = state.students.map(s => {
+        return {
+          ...s,
+          courses: mGradesObj[s.studentId]
+          .sort((a,b) => { return b.grade - a.grade })
+          }
+        })
+        state.student = state.report[0] // after mapping set student to first index
+      },
+      selectStudent(state, index) {
+        state.student = state.report[index]
+      },
+      setLoad(state, load) {
+        state.loading = load
+      }
+    }
+  });
+
+  Vue.component('card', {
+    template: `<div>
+        <div
+          class="card__profile card__profile--temp"
+          v-if="!student.studentImageUrl"
+        >
+          <div class="card__profile__top">
+            <img src="images/profile_head.svg" alt="">
+          </div>
+          <div class="card__profile__bot">
+            <img src="images/profile_body.svg" alt="">
+          </div>
+        </div>
+        <div
+          v-else
+          class="card__profile card__profile__img"
+        >
+          <img :src="student.studentImageUrl" alt="profile_image">
+        </div>
+        <div class="card__det">
+          <div class="card__det_title card__det--poppins
+          card__det--sm card__det__title--light">
+            Exam Results
+          </div>
+          <div class="card__det__student__wrap">
+            <div class="card__det__student card__det__student--dark
+              card__det--lg card__det--poppins">
+              {{ student.studentName }}
+            </div>
+            <div class="card__det__student__country__img">
+                <img :src="student.studentCountryImageUrl">
+            </div>
+          </div>
+          <div class="card__det__categ__wrapper">
+            <div class="card__det__categ card__det--poppins card__det__categ--upper">
+              <div>
+                courses
+              </div>
+              <div class="card__det_categ--ml">
+                results
+              </div>
+            </div>
+            <div class="card__det__hl"></div>
+            <div class="card__det__inner">
+              <div class="card__det__rep">
+                  <div
+                    class="card__det__rep__courses"
+                    v-for="(course, index) in student.courses"
+                  >
+                    <div>{{ index+1 }}. {{ course.courseName }} </div>
+                    <div
+                      v-bind:class="{ 'card__det__course--red':cFailed(course.grade),
+                      'card__det__course--default': !cFailed(course.grade) }"
+                    >
+                      {{ letterGrade(course.grade) }}
+                    </div>
+                    <div>({{ course.grade }}) </div>
+                  </div>
+                </div>
+              </div>
+
+          </div>
+        </div>
+      </div>
+    `,
+    computed: {
+      ...mapState(['items', 'students', 'student']),
+    },
+    data() {
+      return {
+        loaded: false,
+        item: {},
+      }
+    },
+    async mounted() {
+      await this.fetchStudents()
+      await this.fetchCourses()
+      await this.fetchGrades()
+      await this.syncMapStudents()
+      await this.setLoading(false)
+    },
+    methods: {
+      ...mapActions(['fetchStudents','fetchCourses', 'fetchGrades',
+      'syncMapStudents', 'setLoading']),
+      letterGrade(score) {
+        let res = 'F'
+        if(score >= 90) res = 'A'
+        else if(score >= 80) res = 'B'
+        else if(score >= 70) res = 'C'
+        else if(score >= 60) res = 'D'
+        return res
+      },
+      cFailed(grade) {
+        return grade < 60;
+      }
+    }
+  })
+  Vue.component('page-indicator', {
+    template: `<div class="card__bottom">
+        <div
+          class="card__bottom__indicators__block"
+          v-for="(student, i) in students"
+          :key="i"
+          v-on:click="selectCard(student.studentId, i)"
+          v-bind:class="{ 'card__bottom__indicators__block--selected': isSelected(i) }"
+        >
+        </div>
+      </div>
+    `,
+    computed: {
+      ...mapState(['students', 'loading']),
+    },
+    data() {
+      return {
+        index: 0
+      }
+    },
+    methods: {
+      ...mapActions(['selectedStudent']),
+      selectCard(id, i) {
+        if(!this.loading) {
+          this.selectedStudent(i)
+          this.index = i
+        }
+      },
+      isSelected(i) {
+        return this.index === i
+      }
+    }
+  })
+  const vueApp = new Vue({
+    el: '#vapp',
+    store
+  })
+
+  const studentArr = [
+  {
+    "studentId": 1,
+    "studentName": "Alice",
+    "studentImageUrl": "https://placehold.it/300x200",
+    "studentCountryImageUrl": "https://placehold.it/200x133"
+  },
+  {
+    "studentId": 2,
+    "studentName": "Bob",
+    "studentImageUrl": "https://placehold.it/300x200",
+    "studentCountryImageUrl": "https://placehold.it/200x133"
+  },
+  {
+    "studentId": 3,
+    "studentName": "Carol",
+    "studentImageUrl": "https://placehold.it/300x200",
+    "studentCountryImageUrl": "https://placehold.it/200x133"
+  },
+  {
+    "studentId": 4,
+    "studentName": "Dan",
+    "studentImageUrl": "https://placehold.it/300x200",
+    "studentCountryImageUrl": "https://placehold.it/200x133"
+  }
+]
+const gradesArr = [
+    {
+      "studentId": 1,
+      "courseId": 1,
+      "grade": 90.1
+    },
+    {
+      "studentId": 1,
+      "courseId": 2,
+      "grade": 85.6
+    },
+    {
+      "studentId": 1,
+      "courseId": 4,
+      "grade": 80.4
+    },
+    {
+      "studentId": 1,
+      "courseId": 5,
+      "grade": 8.5
+    },
+    {
+      "studentId": 1,
+      "courseId": 2,
+      "grade": 99
+    },
+    {
+      "studentId": 1,
+      "courseId": 3,
+      "grade": 80
+    },
+    {
+      "studentId": 1,
+      "courseId": 1,
+      "grade": 68
+    },
+    {
+      "studentId": 1,
+      "courseId": 3,
+      "grade": 100
+    },
+    {
+      "studentId": 1,
+      "courseId": 4,
+      "grade": 60
+    },
+    {
+      "studentId": 1,
+      "courseId": 5,
+      "grade": 10
+    },
+    {
+      "studentId": 1,
+      "courseId": 1,
+      "grade": 1
+    },
+    {
+      "studentId": 1,
+      "courseId": 5,
+      "grade": 55
+    },
+    {
+      "studentId": 1,
+      "courseId": 4,
+      "grade": 70
+    },
+    {
+      "studentId": 2,
+      "courseId": 2,
+      "grade": 95.2
+    },
+    {
+      "studentId": 2,
+      "courseId": 3,
+      "grade": 56.5
+    },
+    {
+      "studentId": 2,
+      "courseId": 4,
+      "grade": 50.2
+    },
+    {
+      "studentId": 3,
+      "courseId": 1,
+      "grade": 80.2
+    },
+    {
+      "studentId": 3,
+      "courseId": 5,
+      "grade": 40.2
+    },
+    {
+      "studentId": 4,
+      "courseId": 1,
+      "grade": 70.2
+    },
+    {
+      "studentId": 4,
+      "courseId": 5,
+      "grade": 69.2
+    }
+  ]
+  const coursesArr = [
+    {
+      "courseId": 1,
+      "courseName": "Biology"
+    },
+    {
+      "courseId": 2,
+      "courseName": "Math"
+    },
+    {
+      "courseId": 3,
+      "courseName": "History"
+    },
+    {
+      "courseId": 4,
+      "courseName": "English"
+    },
+    {
+      "courseId": 5,
+      "courseName": "Psychology"
+    }
+  ]
+  </script>
+  </body>
+  </html>
