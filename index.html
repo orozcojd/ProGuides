@@ -14,7 +14,6 @@
 </head>
 <body>
   <div id="vapp">
-    <div class="card">
       <card></card>
       <page-indicator></page-indicator>
     </div>
@@ -52,7 +51,7 @@
         return map
       }
       const store = new Vuex.Store({
-    state: {
+      state: {
       students: [],
       student: {},
       courses: [],
@@ -70,10 +69,12 @@
           setTimeout(() => {
           const students = studentArr
           context.commit('setStudents', students)
+          if(students.length) context.dispatch('setStudent', students[0])
           resolve()
         }, 1000)
         })
       },
+
       async fetchCourses(context) {
         return new Promise((resolve, reject) => {
           setTimeout(() => {
@@ -88,12 +89,16 @@
           setTimeout(() => {
           const grades = gradesArr;
           context.commit('setGrades', grades)
+          context.dispatch('syncMapStudents')
           resolve()
         }, 1200)
         })
       },
       syncMapStudents(context) {
         context.commit('mapStudents')
+      },
+      setStudent(context, student) {
+        context.commit('setStudent', student)
       },
       selectedStudent(context, index) {
         context.commit('selectStudent', index)
@@ -103,6 +108,9 @@
       }
     },
     mutations: {
+      setStudent(state, student) {
+        state.student = student;
+      },
       setStudents(state, students) {
         state.students = students
       },
@@ -134,66 +142,57 @@
   });
 
   Vue.component('card', {
-    template: `<div>
-        <div
-          class="card__profile card__profile--temp"
-          v-if="!student.studentImageUrl"
-        >
-          <div class="card__profile__top">
-            <img src="images/profile_head.svg" alt="">
+    template: `<div class="card">
+        <div class="card__profile">
+          <div
+            class="card__profile__img card__profile--temp"
+            v-if="!student.studentImageUrl"
+          >
           </div>
-          <div class="card__profile__bot">
-            <img src="images/profile_body.svg" alt="">
+          <div
+            v-else
+            class="card__profile__img"
+          >
+            <img :src="student.studentImageUrl" alt="profile_image">
           </div>
-        </div>
-        <div
-          v-else
-          class="card__profile card__profile__img"
-        >
-          <img :src="student.studentImageUrl" alt="profile_image">
         </div>
         <div class="card__det">
-          <div class="card__det_title card__det--poppins
-          card__det--sm card__det__title--light">
-            Exam Results
+        <div class="card__det__title card__det--poppins card__det--sm card__det__title--light">
+          Exam Results
           </div>
           <div class="card__det__student__wrap">
             <div class="card__det__student card__det__student--dark
-              card__det--lg card__det--poppins">
+              card__det--lg card__det--poppins"
+            >
               {{ student.studentName }}
             </div>
             <div class="card__det__student__country__img">
-                <img :src="student.studentCountryImageUrl">
+              <img :src="student.studentCountryImageUrl">
             </div>
           </div>
-          <div class="card__det__categ__wrapper">
+          <div>
             <div class="card__det__categ card__det--poppins card__det__categ--upper">
-              <div>
-                courses
-              </div>
-              <div class="card__det_categ--ml">
-                results
-              </div>
+              <div> courses </div>
+              <div> results </div>
             </div>
             <div class="card__det__hl"></div>
-            <div class="card__det__inner">
-              <div class="card__det__rep">
+            <div class="card__det__rep">
+              <div
+                class="card__det__rep__courses"
+                v-for="(course, index) in student.courses"
+              >
+                <div>{{ index+1 }}.<span>{{ course.courseName }}</span></div>
+                <div class="rep__courses__grades">
                   <div
-                    class="card__det__rep__courses"
-                    v-for="(course, index) in student.courses"
+                    v-bind:class="{ 'card__det__course--red':cFailed(course.grade),
+                    'card__det__course--default': !cFailed(course.grade) }"
                   >
-                    <div>{{ index+1 }}. {{ course.courseName }} </div>
-                    <div
-                      v-bind:class="{ 'card__det__course--red':cFailed(course.grade),
-                      'card__det__course--default': !cFailed(course.grade) }"
-                    >
-                      {{ letterGrade(course.grade) }}
-                    </div>
-                    <div>({{ course.grade }}) </div>
+                    {{ letterGrade(course.grade) }}
                   </div>
+                  <div>({{ course.grade }}) </div>
                 </div>
               </div>
-
+            </div>
           </div>
         </div>
       </div>
@@ -211,7 +210,6 @@
       await this.fetchStudents()
       await this.fetchCourses()
       await this.fetchGrades()
-      await this.syncMapStudents()
       await this.setLoading(false)
     },
     methods: {
@@ -411,7 +409,7 @@ const gradesArr = [
     },
     {
       "courseId": 4,
-      "courseName": "English"
+      "courseName": "English Literature"
     },
     {
       "courseId": 5,
